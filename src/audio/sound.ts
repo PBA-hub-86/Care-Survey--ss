@@ -18,13 +18,13 @@ class TycoonAudioSystem {
   private radioTimer: number | null = null;
   private radioStep = 0;
   private currentBulletinIndex = 0;
-  private currentBulletin = 'হাইওয়ে এফএম ১০২.৪: এক্সপ্রেসওয়ে মেইন লেন একদম ক্লিয়ার, গতি বজায় রাখুন!';
+  private currentBulletin = 'ঢাকা এফএম ১০২.৪: মিরপুর-ফার্মগেট ফ্লাইওভারে ব্যস্ত ট্রাফিক, সাবধানে ওভারটেক করুন!';
   private radioBulletins: string[] = [
-    'হাইওয়ে এফএম ১০২.৪: এক্সপ্রেসওয়ে মেইন লেন একদম ক্লিয়ার, গতি বজায় রাখুন!',
-    'হাইওয়ে বুলেটিন: কোস্টাল ওশান রোড ও মাউন্টেন পাস ট্রাফিকের জন্য সম্পূর্ণ উন্মুক্ত।',
-    'ট্রাফিক কন্ট্রোল: হাই-স্পিড এক্সপ্রেসওয়েতে নিরাপদ দূরত্ব বজায় রেখে ওভারটেক করুন।',
-    'ওয়েদার সতর্কতা: সামনে বৃষ্টি ও কুয়াশার সম্ভাবনা, পিচ্ছিল রাস্তায় সাবধানে ড্রাইভ করুন।',
-    'হাইওয়ে মনিটর: সকল জংশন ও ফ্লাইওভার লেন স্বাভাবিক রয়েছে, নির্ধারিত গতি মেনে চলুন।'
+    'ঢাকা এফএম ১০২.৪: মিরপুর-ফার্মগেট ফ্লাইওভারে ব্যস্ত ট্রাফিক, সাবধানে ওভারটেক করুন!',
+    'ট্রাফিক বুলেটিন: সামনে স্পিড ব্রেকার ও জেব্রা ক্রসিং — ব্রেক (S) ব্যবহার করে যাত্রী তুলুন।',
+    'পুলিশ সতর্কতা: হাইওয়েতে ওভারস্পিডিং করলে ঢাকা মেট্রো পুলিশ ধাওয়া করতে পারে!',
+    'ওয়েদার সতর্কতা: হঠাৎ বৃষ্টি ও ঘন কুয়াশায় গ্রিপ কমে যায়, ফুয়েল ও হেলথ খেয়াল রাখুন।',
+    'মেট্রোরেল আপডেট: উত্তরা-মতিঝিল এমআরটি লাইন-৬ পুরোদমে চালু রয়েছে।'
   ];
 
   constructor() {
@@ -210,6 +210,50 @@ class TycoonAudioSystem {
     this.stopEngine();
     this.tone(85, 0.6, 'triangle', 0.4);
     setTimeout(() => this.tone(40, 0.5, 'sawtooth', 0.35), 40);
+  }
+
+  public playDamageImpact() {
+    this.tone(110, 0.24, 'sawtooth', 0.28);
+    setTimeout(() => this.tone(68, 0.22, 'triangle', 0.24), 35);
+  }
+
+  public playFuelPickup() {
+    this.init();
+    if (this.isMuted || !this.ctx) return;
+    [520, 680, 920].forEach((f, idx) => {
+      setTimeout(() => this.tone(f, 0.1, 'sine', 0.16), idx * 45);
+    });
+  }
+
+  public playRepairPickup() {
+    this.init();
+    if (this.isMuted || !this.ctx) return;
+    [440, 660, 880, 1180].forEach((f, idx) => {
+      setTimeout(() => this.tone(f, 0.11, 'triangle', 0.18), idx * 40);
+    });
+  }
+
+  public playPassengerBoard() {
+    this.init();
+    if (this.isMuted || !this.ctx) return;
+    this.tone(659.25, 0.1, 'triangle', 0.18);
+    setTimeout(() => this.tone(880, 0.16, 'triangle', 0.2), 75);
+  }
+
+  public playPassengerDropoff() {
+    this.init();
+    if (this.isMuted || !this.ctx) return;
+    [587.33, 783.99, 987.77, 1318.51].forEach((f, idx) => {
+      setTimeout(() => this.tone(f, 0.16, 'triangle', 0.2), idx * 60);
+    });
+  }
+
+  public playTimerBeep() {
+    this.tone(980, 0.06, 'sine', 0.12);
+  }
+
+  public playBrakeScreech() {
+    this.tone(420, 0.07, 'sawtooth', 0.05);
   }
 
   public playSiren() {
@@ -577,23 +621,55 @@ class TycoonAudioSystem {
   }
 
   /**
+   * Traditional Cycle Rickshaw Double Bell ("ক্রিং-ক্রিং!")
+   */
+  public playRickshawBell(pan = 0, vol = 0.18) {
+    this.init();
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const panner = this.pannerNode(pan);
+      [0, 0.11].forEach((offset) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const t = now + offset;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(2200, t);
+        osc.frequency.exponentialRampToValueAtTime(1750, t + 0.09);
+        gain.gain.setValueAtTime(vol * 0.7, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+        if (panner) {
+          osc.connect(gain).connect(panner).connect(this.ctx.destination);
+        } else {
+          osc.connect(gain).connect(this.ctx.destination);
+        }
+        osc.start(t);
+        osc.stop(t + 0.12);
+      });
+    } catch {}
+  }
+
+  /**
    * Spatial traffic honk routed by relative vehicle coordinates
    */
   public playDhakaTrafficHorn(
-    type: 'bus' | 'truck' | 'suv' | 'cng' | 'police' | 'car',
+    type: 'bus' | 'truck' | 'suv' | 'cng' | 'police' | 'car' | 'rickshaw' | 'easybike' | 'dhaka_bus' | 'bd_truck',
     relX: number,
     relZ: number
   ) {
     const dist = Math.hypot(relX, relZ);
-    if (dist > 50) return; // out of hearing range
+    if (dist > 50) return;
 
     const pan = Math.max(-0.85, Math.min(0.85, relX / 8));
     const vol = Math.max(0.05, Math.min(0.3, (1 - dist / 50) * 0.28));
 
-    if (type === 'bus' || type === 'truck') {
-      this.playDhakaBusAirHorn(pan, type === 'truck' ? vol * 1.15 : vol);
-    } else if (type === 'cng') {
+    if (type === 'bus' || type === 'truck' || type === 'dhaka_bus' || type === 'bd_truck') {
+      this.playDhakaBusAirHorn(pan, type === 'truck' || type === 'bd_truck' ? vol * 1.15 : vol);
+    } else if (type === 'cng' || type === 'easybike') {
       this.playCNGSqueakHorn(pan, vol);
+    } else if (type === 'rickshaw') {
+      this.playRickshawBell(pan, vol);
     } else if (type === 'police') {
       this.playSiren();
     } else {

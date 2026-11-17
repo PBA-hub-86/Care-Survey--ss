@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameEngine } from './game/GameEngine';
-import { CarConfig, RoadTheme, GlobalUpgrades, GameStats, RunSummary, DriverProfileStats } from './types/game';
+import {
+  CarConfig,
+  RoadTheme,
+  GlobalUpgrades,
+  GameStats,
+  RunSummary,
+  DriverProfileStats,
+  GameEndReason,
+} from './types/game';
 import {
   INITIAL_CARS,
   INITIAL_ROAD_THEMES,
@@ -29,46 +37,64 @@ export default function App() {
     initAntiCheatGuards();
   }, []);
 
-  // Persistence: Cars (Secured & Tamper-proof)
+  // Persistence: Cars (v6 stores 5-star max tier stats; preserves unlocked status)
   const [cars, setCars] = useState<CarConfig[]>(() => {
-    return loadSecure<CarConfig[]>('st3d_cars_sec_v5', INITIAL_CARS);
+    const saved = loadSecure<CarConfig[]>('st3d_cars_sec_v6', INITIAL_CARS);
+    return INITIAL_CARS.map((baseCar) => {
+      const match = saved.find((s) => s.id === baseCar.id);
+      return match
+        ? {
+            ...baseCar,
+            unlocked: match.unlocked,
+            underglow: match.underglow || baseCar.underglow,
+          }
+        : baseCar;
+    });
   });
 
   const [selectedCarIndex, setSelectedCarIndex] = useState<number>(() => {
-    const idx = loadSecure<number>('st3d_car_idx_sec_v5', 0);
+    const idx = loadSecure<number>('st3d_car_idx_sec_v6', 0);
     return idx >= 0 && idx < INITIAL_CARS.length ? idx : 0;
   });
 
-  // Persistence: Road Themes (Secured)
+  // Persistence: Road Themes (v6 includes Dhaka City Expressway default)
   const [roads, setRoads] = useState<RoadTheme[]>(() => {
-    return loadSecure<RoadTheme[]>('st3d_roads_sec_v5', INITIAL_ROAD_THEMES);
+    const saved = loadSecure<RoadTheme[]>('st3d_roads_sec_v6', INITIAL_ROAD_THEMES);
+    return INITIAL_ROAD_THEMES.map((baseRoad) => {
+      const match = saved.find((s) => s.id === baseRoad.id);
+      return match ? { ...baseRoad, unlocked: match.unlocked } : baseRoad;
+    });
   });
 
   const [selectedRoadIndex, setSelectedRoadIndex] = useState<number>(() => {
-    const idx = loadSecure<number>('st3d_road_idx_sec_v5', 0);
+    const idx = loadSecure<number>('st3d_road_idx_sec_v6', 0);
     return idx >= 0 && idx < INITIAL_ROAD_THEMES.length ? idx : 0;
   });
 
-  // Persistence: Global Upgrades (Secured)
+  // Persistence: Global Upgrades
   const [upgrades, setUpgrades] = useState<GlobalUpgrades>(() => {
-    return loadSecure<GlobalUpgrades>('st3d_upgrades_sec_v5', INITIAL_UPGRADES);
+    return loadSecure<GlobalUpgrades>('st3d_upgrades_sec_v6', INITIAL_UPGRADES);
   });
 
-  // Persistence: Neon Underglows (Secured)
+  // Persistence: Neon Underglows
   const [underglows, setUnderglows] = useState<typeof UNDERGLOW_PALETTES>(() => {
-    return loadSecure<typeof UNDERGLOW_PALETTES>('st3d_underglows_sec_v5', UNDERGLOW_PALETTES);
+    const saved = loadSecure<typeof UNDERGLOW_PALETTES>('st3d_underglows_sec_v6', UNDERGLOW_PALETTES);
+    return UNDERGLOW_PALETTES.map((base) => {
+      const match = saved.find((s) => s.color === base.color);
+      return match ? { ...base, unlocked: match.unlocked } : base;
+    });
   });
 
   const [selectedUnderglow, setSelectedUnderglow] = useState<string>(() => {
-    const savedCars = loadSecure<CarConfig[]>('st3d_cars_sec_v5', INITIAL_CARS);
-    const savedIdx = loadSecure<number>('st3d_car_idx_sec_v5', 0);
+    const savedCars = loadSecure<CarConfig[]>('st3d_cars_sec_v6', INITIAL_CARS);
+    const savedIdx = loadSecure<number>('st3d_car_idx_sec_v6', 0);
     const idx = savedIdx >= 0 && savedIdx < savedCars.length ? savedIdx : 0;
     return savedCars[idx]?.underglow || INITIAL_CARS[0].underglow;
   });
 
-  // Persistence: In-Game Wallet Balance (Secured against browser console hacking)
+  // Persistence: In-Game Wallet Balance (preserves existing balance)
   const [walletBalance, setWalletBalance] = useState<number>(() => {
-    return loadSecure<number>('st3d_wallet_sec_v5', 3000); // ৳3,000 Starter Cash!
+    return loadSecure<number>('st3d_wallet_sec_v5', 5000);
   });
 
   const [highScore, setHighScore] = useState<number>(() => {
@@ -76,13 +102,16 @@ export default function App() {
   });
 
   const [profileStats, setProfileStats] = useState<DriverProfileStats>(() => {
-    return loadSecure<DriverProfileStats>('st3d_profile_sec_v5', {
-      totalDistance: 0,
-      totalCrashes: 0,
-      totalRuns: 0,
-      speedSum: 0,
-      history: [],
-    });
+    const raw = loadSecure<Partial<DriverProfileStats>>('st3d_profile_sec_v5', {});
+    return {
+      totalDistance: raw.totalDistance ?? 0,
+      totalCrashes: raw.totalCrashes ?? 0,
+      totalRuns: raw.totalRuns ?? 0,
+      speedSum: raw.speedSum ?? 0,
+      totalXp: raw.totalXp ?? 0,
+      passengersDropped: raw.passengersDropped ?? 0,
+      history: Array.isArray(raw.history) ? raw.history : [],
+    };
   });
 
   // UI Flow State
@@ -126,11 +155,32 @@ export default function App() {
     speed: 140,
     maxSpeed: 140,
     nitro: 100,
-    shields: 0,
-    maxShields: 0,
+    health: 100,
+    maxHealth: 100,
+    fuel: 100,
+    maxFuel: 100,
+    countdownTimer: 50,
+    xp: 0,
+    driverLevel: 1,
+    passengersDropped: 0,
+    passengerMission: {
+      status: 'none',
+      passengerName: '',
+      pickupStopName: '',
+      destinationName: '',
+      fareTaka: 0,
+      xpReward: 0,
+      distanceRemaining: 0,
+      timeRemaining: 0,
+      needsSlowDown: false,
+    },
+    isBraking: false,
+    shields: 5,
+    maxShields: 5,
     combo: 1,
     comboTimer: 0,
     policeActive: false,
+    policeChaseIntensity: 0,
     nearMisses: 0,
     cashCollectedThisRun: 0,
     activeMission: INITIAL_MISSIONS[0],
@@ -152,19 +202,19 @@ export default function App() {
 
   // Encrypted Persistence Saves
   useEffect(() => {
-    saveSecure('st3d_cars_sec_v5', cars);
+    saveSecure('st3d_cars_sec_v6', cars);
   }, [cars]);
 
   useEffect(() => {
-    saveSecure('st3d_roads_sec_v5', roads);
+    saveSecure('st3d_roads_sec_v6', roads);
   }, [roads]);
 
   useEffect(() => {
-    saveSecure('st3d_upgrades_sec_v5', upgrades);
+    saveSecure('st3d_upgrades_sec_v6', upgrades);
   }, [upgrades]);
 
   useEffect(() => {
-    saveSecure('st3d_underglows_sec_v5', underglows);
+    saveSecure('st3d_underglows_sec_v6', underglows);
   }, [underglows]);
 
   useEffect(() => {
@@ -172,11 +222,11 @@ export default function App() {
   }, [walletBalance]);
 
   useEffect(() => {
-    saveSecure('st3d_car_idx_sec_v5', selectedCarIndex);
+    saveSecure('st3d_car_idx_sec_v6', selectedCarIndex);
   }, [selectedCarIndex]);
 
   useEffect(() => {
-    saveSecure('st3d_road_idx_sec_v5', selectedRoadIndex);
+    saveSecure('st3d_road_idx_sec_v6', selectedRoadIndex);
   }, [selectedRoadIndex]);
 
   useEffect(() => {
@@ -200,11 +250,13 @@ export default function App() {
         onStatsUpdate: (newStats) => {
           setStats(newStats);
         },
-        onCrash: () => {
+        onCrash: (reason: GameEndReason) => {
           const finalScore = Math.floor(engine.score);
           const finalDistance = Math.floor(engine.distance);
           const finalSpeed = Math.floor(engine.maxSpeedAchieved);
           const earnedThisRun = engine.cashCollectedThisRun;
+          const xpEarned = Math.floor(engine.xp);
+          const droppedCount = engine.passengersDropped;
 
           // Credit earned cash to in-game wallet
           setWalletBalance((prev) => prev + earnedThisRun);
@@ -234,6 +286,8 @@ export default function App() {
               totalCrashes: prev.totalCrashes + 1,
               totalRuns: nextRuns,
               speedSum: prev.speedSum + finalSpeed,
+              totalXp: (prev.totalXp ?? 0) + xpEarned,
+              passengersDropped: (prev.passengersDropped ?? 0) + droppedCount,
               history: nextHistory,
             };
           });
@@ -244,6 +298,9 @@ export default function App() {
             maxSpeed: finalSpeed,
             nearMisses: engine.nearMisses,
             cashEarned: earnedThisRun,
+            xpEarned,
+            passengersDropped: droppedCount,
+            endReason: reason,
             isNewRecord: isNew,
             carName: carsRef.current[selectedCarIndexRef.current]?.name || 'Supercar',
           });
@@ -339,6 +396,24 @@ export default function App() {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchend', handleTouchEnd);
     };
+  }, []);
+
+  // Sync Escape / P pause key state with React modal state
+  useEffect(() => {
+    const onPauseKey = (e: KeyboardEvent) => {
+      if (e.code === 'Escape' || e.code === 'KeyP') {
+        const eng = engineRef.current;
+        if (eng && eng.isRunning) {
+          // GameEngine.onKeyDown toggles isPaused synchronously; sync React state right after
+          setTimeout(() => {
+            if (!engineRef.current) return;
+            setGameState(engineRef.current.isPaused ? 'paused' : 'playing');
+          }, 0);
+        }
+      }
+    };
+    window.addEventListener('keydown', onPauseKey);
+    return () => window.removeEventListener('keydown', onPauseKey);
   }, []);
 
   // Action handlers
@@ -496,9 +571,6 @@ export default function App() {
         className="fixed inset-0 w-full h-full block z-0"
       />
 
-      {/* Retro Cyberpunk Scanlines */}
-      <div className="fixed inset-0 pointer-events-none z-10 opacity-20 bg-[linear-gradient(rgba(255,255,255,0)_50%,rgba(0,0,0,0.4)_50%)] bg-[length:100%_4px]" />
-
       {/* In-Game HUD & Mobile Touch Controls */}
       {gameState === 'playing' && (
         <>
@@ -513,6 +585,7 @@ export default function App() {
             onMoveLeft={() => engineRef.current?.moveLeft()}
             onMoveRight={() => engineRef.current?.moveRight()}
             onSetBoost={(b) => engineRef.current?.setBoost(b)}
+            onSetBrake={(b) => engineRef.current?.setBrake(b)}
           />
         </>
       )}
@@ -583,15 +656,15 @@ export default function App() {
 
       {/* Cinematic 3D Replay Overlay */}
       {isReplaying && (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-black/85 border border-cyan-400 text-white font-mono text-xs font-bold flex items-center gap-2.5 shadow-[0_0_25px_rgba(0,234,255,0.6)]">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#030716f2] border border-cyan-400 text-white font-mono text-xs font-bold flex items-center gap-2.5 shadow-[0_0_25px_rgba(0,234,255,0.5)]">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
           <span>🎬 ৩ডি সিনেমাটিক রিপ্লে চলছে...</span>
           <button
             onClick={() => {
               engineRef.current?.stopReplay();
               setIsReplaying(false);
             }}
-            className="ml-2 text-cyan-300 hover:text-white underline cursor-pointer"
+            className="ml-2 text-cyan-300 hover:text-white underline cursor-pointer min-h-[32px] px-2"
           >
             বন্ধ করুন (Exit)
           </button>
