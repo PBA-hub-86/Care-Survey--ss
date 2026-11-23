@@ -77,13 +77,12 @@ export const LuckySpinModal: React.FC<LuckySpinModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/85 font-sans">
-      <div className="w-full max-w-md bg-[#05081cf8] border border-amber-500/50 rounded-3xl p-6 shadow-[0_0_80px_rgba(245,158,11,0.25)] flex flex-col items-center text-center text-white relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md font-sans">
+      <div className="w-full max-w-md bg-[#05081c] border border-amber-500/50 rounded-3xl p-6 shadow-[0_0_80px_rgba(245,158,11,0.25)] flex flex-col items-center text-center text-white relative">
         <button
           onClick={onClose}
           disabled={spinning}
-          className="absolute top-4 right-4 min-w-[44px] min-h-[44px] p-2 rounded-2xl bg-slate-900 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-          aria-label="Close Lucky Spin"
+          className="absolute top-4 right-4 p-2 rounded-2xl bg-slate-900 border border-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -100,9 +99,9 @@ export const LuckySpinModal: React.FC<LuckySpinModalProps> = ({
         </p>
 
         {/* Live Wallet */}
-        <div className="my-3 px-4 py-1.5 rounded-2xl bg-emerald-950 border border-emerald-500/40 flex items-center gap-2">
+        <div className="my-3 px-4 py-1.5 rounded-2xl bg-emerald-950/70 border border-emerald-500/40 flex items-center gap-2">
           <Coins className="w-4 h-4 text-emerald-400" />
-          <span className="text-xs font-mono text-emerald-300 font-bold tabular-nums">
+          <span className="text-xs font-mono text-emerald-300 font-bold">
             ওয়ালেট: ৳ {balance.toLocaleString()}
           </span>
         </div>
@@ -138,7 +137,7 @@ export const LuckySpinModal: React.FC<LuckySpinModalProps> = ({
 
         {/* Result Announcement */}
         {wonPrize && (
-          <div className="mb-3 px-4 py-2 rounded-2xl bg-amber-500/20 border border-amber-400 text-amber-300 font-mono font-bold text-sm">
+          <div className="mb-3 px-4 py-2 rounded-2xl bg-amber-500/20 border border-amber-400 text-amber-300 font-mono font-bold text-sm animate-bounce">
             🎉 অভিনন্দন! আপনি জিতেছেন: {wonPrize}!
           </div>
         )}
@@ -147,7 +146,7 @@ export const LuckySpinModal: React.FC<LuckySpinModalProps> = ({
         <button
           onClick={handleSpin}
           disabled={spinning || (!freeSpinAvailable && balance < spinCost)}
-          className={`w-full min-h-[48px] py-3.5 rounded-2xl font-mono font-black text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+          className={`w-full py-3.5 rounded-2xl font-mono font-black text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
             freeSpinAvailable
               ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-black shadow-[0_0_30px_rgba(245,158,11,0.6)] hover:brightness-110'
               : balance >= spinCost

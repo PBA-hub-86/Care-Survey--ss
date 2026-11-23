@@ -68,7 +68,6 @@ export function createHighwayRoadTextureSet(
   const rctx = roughCanvas.getContext('2d')!;
 
   const isDayOrNatural =
-    theme.skyType === 'dhaka_day' ||
     theme.skyType === 'daytime' ||
     theme.skyType === 'coxsbazar_marine' ||
     theme.skyType === 'sahara_sunset';
@@ -106,8 +105,8 @@ export function createHighwayRoadTextureSet(
   const leftShoulderEnd = xToPx(-8.45);
   const rightShoulderStart = xToPx(8.45);
   const shoulderColor = rgbCss(
-    asphaltBase.r + (isDayOrNatural ? 15 : 8),
-    asphaltBase.g + (isDayOrNatural ? 13 : 8),
+    asphaltBase.r + (isDayOrNatural ? 13 : 8),
+    asphaltBase.g + (isDayOrNatural ? 12 : 8),
     asphaltBase.b + (isDayOrNatural ? 10 : 9),
     0.85
   );
@@ -129,8 +128,8 @@ export function createHighwayRoadTextureSet(
   const bData = bImg.data;
 
   for (let i = 0; i < aData.length; i += 4) {
-    const n = (rand() - 0.5) * 28;
-    const speck = rand() > 0.982 ? 26 : 0; // aggregate glint
+    const n = (rand() - 0.5) * 26;
+    const speck = rand() > 0.985 ? 24 : 0; // tiny quartz aggregate glint
     aData[i] = Math.max(0, Math.min(255, aData[i] + n + speck));
     aData[i + 1] = Math.max(0, Math.min(255, aData[i + 1] + n + speck));
     aData[i + 2] = Math.max(0, Math.min(255, aData[i + 2] + n + speck));
@@ -142,21 +141,6 @@ export function createHighwayRoadTextureSet(
   }
   actx.putImageData(aImg, 0, 0);
   bctx.putImageData(bImg, 0, 0);
-
-  // Worn Dhaka Asphalt Resurfaced Patches (rectangular darker/lighter bitumen patches)
-  for (let p = 0; p < 14; p++) {
-    const px = xToPx(-7.8 + rand() * 14.5);
-    const py = rand() * height;
-    const pw = 24 + rand() * 52;
-    const ph = 30 + rand() * 80;
-    actx.fillStyle = p % 2 === 0 ? 'rgba(18, 20, 26, 0.36)' : 'rgba(72, 76, 86, 0.24)';
-    actx.fillRect(px, py, pw, ph);
-    if (py + ph > height) {
-      actx.fillRect(px, py - height, pw, ph);
-    }
-    bctx.fillStyle = 'rgb(142,142,142)';
-    bctx.fillRect(px, py, pw, ph);
-  }
 
   // 3. Realistic longitudinal tire wear tracks in all 5 driving lanes (-6.4, -3.2, 0, 3.2, 6.4)
   const laneCenters = [-6.4, -3.2, 0, 3.2, 6.4];
@@ -181,10 +165,10 @@ export function createHighwayRoadTextureSet(
     });
   });
 
-  // 4. Sealed tar repair cracks & longitudinal seam joints (wrapped seamlessly at top/bottom)
-  actx.strokeStyle = 'rgba(10, 12, 16, 0.48)';
+  // 4. Subtle sealed tar repair cracks & longitudinal seam joints (wrapped seamlessly at top/bottom)
+  actx.strokeStyle = 'rgba(10, 12, 16, 0.45)';
   actx.lineWidth = 2;
-  for (let c = 0; c < 14; c++) {
+  for (let c = 0; c < 10; c++) {
     const startX = xToPx(-8 + rand() * 16);
     const startY = rand() * height;
     const len = 60 + rand() * 110;
@@ -347,7 +331,6 @@ export function createFlyoverTextureSet(
   const rctx = roughCanvas.getContext('2d')!;
 
   const isDayOrNatural =
-    theme.skyType === 'dhaka_day' ||
     theme.skyType === 'daytime' ||
     theme.skyType === 'coxsbazar_marine' ||
     theme.skyType === 'sahara_sunset';
@@ -461,7 +444,7 @@ export function createTerrainTextureSet(
   let accent = '#2e5929';
   let gridLine: string | null = null;
 
-  if (theme.skyType === 'dhaka_day' || theme.skyType === 'daytime' || theme.skyType === 'coxsbazar_marine') {
+  if (theme.skyType === 'daytime' || theme.skyType === 'coxsbazar_marine') {
     bg = '#2c4c27';
     accent = '#3f6a34';
   } else if (theme.skyType === 'sahara_sunset') {
@@ -575,82 +558,6 @@ export function createHeadlightBeamTexture(): THREE.CanvasTexture {
   drawBeam(84);
   drawBeam(172);
 
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-/**
- * Generates yellow-and-black hazard striped Dhaka speed breaker bump texture.
- */
-export function createSpeedBreakerTexture(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 64;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#18181b';
-  ctx.fillRect(0, 0, 512, 64);
-  ctx.fillStyle = '#facc15';
-  for (let x = -64; x < 576; x += 64) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x + 32, 0);
-    ctx.lineTo(x + 64, 64);
-    ctx.lineTo(x + 32, 64);
-    ctx.closePath();
-    ctx.fill();
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-/**
- * Generates weathered Dhaka zebra crossing stripes texture.
- */
-export function createZebraCrossingTexture(): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-  ctx.clearRect(0, 0, 512, 128);
-  ctx.fillStyle = 'rgba(248, 250, 252, 0.86)';
-  for (let x = 14; x < 500; x += 48) {
-    ctx.fillRect(x, 10, 26, 108);
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-/**
- * Generates local Dhaka shop signboard texture (Bengali storefronts & ads).
- */
-export function createDhakaShopSignTexture(
-  title: string,
-  subtitle: string,
-  bgColor: string,
-  accentColor: string
-): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 384;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = bgColor;
-  ctx.fillRect(0, 0, 384, 128);
-  ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 6;
-  ctx.strokeRect(4, 4, 376, 120);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 34px "Hind Siliguri", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(title, 192, 54);
-  ctx.fillStyle = accentColor;
-  ctx.font = 'bold 20px "Hind Siliguri", sans-serif';
-  ctx.fillText(subtitle, 192, 96);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.needsUpdate = true;
